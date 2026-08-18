@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NOVAGRO — Control de vencimientos</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<div class="layout-sidebar">
+  <div class="encabezado">
+    <svg class="logo" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M24 42V20" stroke="#e8c547" stroke-width="2.5" stroke-linecap="round"/>
+      <path d="M24 30C24 30 12 28 12 16C12 16 24 16 24 30Z" fill="#e8c547"/>
+      <path d="M24 24C24 24 36 22 36 10C36 10 24 10 24 24Z" fill="#e8c547"/>
+      <ellipse cx="24" cy="43" rx="10" ry="2.5" fill="#1f3d20"/>
+    </svg>
+    <div>
+      <div class="nombre-empresa">NOVAGRO S.A.</div>
+      <div class="subtitulo">Cañada Rosquín, Santa Fe</div>
+    </div>
+  </div>
+  <nav class="menu-lateral">
+    <button class="item-menu activo" data-vista="vista-nuevo">+ Nuevo vencimiento</button>
+    <button class="item-menu" data-vista="vista-lista">📋 Mis vencimientos</button>
+  </nav>
+</div>
+
+<div class="contenido">
+
+  <!-- ===== VISTA: NUEVO VENCIMIENTO ===== -->
+  <section id="vista-nuevo" class="vista">
+    <div class="card">
+      <p class="eyebrow">Control de vencimientos</p>
+      <h2>Nuevo vencimiento</h2>
+
+      <form id="form-vencimiento">
+        <label>Tipo</label>
+        <select id="tipo"></select>
+        <input type="text" id="tipo_manual" class="campo-manual" placeholder="Escribí el tipo">
+
+        <label>Entidad</label>
+        <select id="entidad_id"></select>
+        <input type="text" id="entidad_manual" class="campo-manual" placeholder="Nombre de la entidad nueva">
+        <p class="aviso" id="aviso-tipo"></p>
+
+        <div class="seccion-seguro" id="seccion-seguro">
+          <div class="row">
+            <div>
+              <label>Objeto asegurado</label>
+              <input type="text" id="objeto_asegurado" placeholder="Maquinaria, Camiones...">
+            </div>
+            <div>
+              <label>Detalle</label>
+              <input type="text" id="detalle" placeholder="Toyota Hilux...">
+            </div>
+          </div>
+        </div>
+
+        <label>Concepto</label>
+        <input type="text" id="concepto" placeholder="Póliza granizo - lote 14">
+
+        <div class="row">
+          <div>
+            <label>Monto</label>
+            <input type="number" id="monto" placeholder="220000">
+          </div>
+          <div>
+            <label>Vencimiento</label>
+            <input type="date" id="fecha_vencimiento">
+          </div>
+        </div>
+
+        <label>Recurrencia</label>
+        <select id="recurrencia"></select>
+        <input type="text" id="recurrencia_manual" class="campo-manual" placeholder="Ej: cada 3 meses">
+
+        <label>Comprobantes (PDF) — podés elegir varios</label>
+        <input type="file" id="pdf" accept="application/pdf" multiple>
+
+        <button type="submit">Guardar vencimiento</button>
+      </form>
+    </div>
+  </section>
+
+  <!-- ===== VISTA: MIS VENCIMIENTOS ===== -->
+  <section id="vista-lista" class="vista" style="display:none;">
+    <p class="eyebrow">Control de vencimientos</p>
+    <h2>Mis vencimientos</h2>
+
+    <div class="resumen" id="resumen"></div>
+
+    <div class="filtros" id="filtros">
+      <button class="filtro-btn activo" data-filtro="todos">Todos</button>
+      <button class="filtro-btn" data-filtro="Seguro">Seguros</button>
+      <button class="filtro-btn" data-filtro="Cuota">Cuotas</button>
+      <button class="filtro-btn" data-filtro="Impuesto">Impuestos</button>
+      <button class="filtro-btn" data-filtro="Servicio">Servicios</button>
+      <button class="filtro-btn" data-filtro="Tarjeta">Tarjetas</button>
+    </div>
+
+    <div id="aviso-filtro-estado"></div>
+    <div class="tabla-vencimientos" id="tabla"></div>
+
+    <p class="titulo-seccion">Por empresa / entidad</p>
+    <div id="grupos-entidad"></div>
+  </section>
+
+</div>
+
+<div class="fondo-modal" id="fondo-modal">
+  <div class="modal">
+    <div class="modal-encabezado">
+      <h2 style="margin:0; font-size:18px;">Editar vencimiento</h2>
+      <button class="modal-cerrar" id="cerrar-modal">&times;</button>
+    </div>
+
+    <div class="detalle-info" id="m_info"></div>
+
+    <div id="m_comprobante" style="margin: 10px 0;"></div>
+
+    <label>Tipo</label>
+    <select id="m_tipo">
+      <option>Seguro</option>
+      <option>Cuota</option>
+      <option>Impuesto</option>
+      <option>Servicio</option>
+      <option>Tarjeta</option>
+    </select>
+
+    <label>Concepto</label>
+    <input type="text" id="m_concepto">
+
+    <div class="row">
+      <div>
+        <label>Monto</label>
+        <input type="number" id="m_monto">
+      </div>
+      <div>
+        <label>Vencimiento</label>
+        <input type="date" id="m_fecha_vencimiento">
+      </div>
+    </div>
+
+    <label>Recurrencia</label>
+    <input type="text" id="m_recurrencia">
+
+    <label>Subir comprobantes nuevos (PDF) — podés elegir varios</label>
+    <input type="file" id="m_pdf" accept="application/pdf" multiple>
+
+    <div class="modal-acciones">
+      <button class="boton-secundario" id="m_marcar_pagado" type="button">Marcar como pagado</button>
+      <button class="boton-secundario" id="m_deshacer_pago" type="button" style="display:none;">Deshacer pago</button>
+      <button id="m_guardar" type="button">Guardar cambios</button>
+    </div>
+  </div>
+</div>
+
+<div class="fondo-modal" id="fondo-pdf">
+  <div class="modal modal-pdf">
+    <div class="modal-encabezado">
+      <h2 style="margin:0; font-size:16px;">Comprobante</h2>
+      <button class="modal-cerrar" id="cerrar-pdf">&times;</button>
+    </div>
+    <iframe id="visor-pdf" src="" title="Comprobante PDF"></iframe>
+    <a id="descargar-pdf" class="pdf-link" href="#" target="_blank" style="margin-top:10px;">⬇ Descargar</a>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="main.js"></script>
+</body>
+</html>
