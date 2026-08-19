@@ -29,6 +29,74 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 
+// Para el análisis con IA no necesitamos guardar el PDF en disco todavía,
+// solo tenerlo en memoria un instante para mandarlo a la API.
+const uploadMemoria = multer({ storage: multer.memoryStorage() });
+
+app.post('/api/analizar-pdf', uploadMemoria.single('pdf'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'No se recibió ningún PDF' });
+    if (!process.env.ANTHROPIC_API_KEY) {
+      return res.status(500).json({ error: 'Falta configurar ANTHROPIC_API_KEY en el servidor' });
+    }
+
+    const base64Pdf = req.file.buffer.toString('base64');
+
+    const prompt = `Analizá este comprobante o factura y extraé los siguientes datos. Respondé ÚNICAMENTE con un objeto JSON válido, sin texto adicional antes ni después, sin bloques de código, con esta forma exacta:
+
+{
+  "tipo": "Seguro" | "Cuota" | "Impuesto" | "Servicio" | "Tarjeta",
+  "entidad_nombre": "nombre de la empresa o entidad que emite el comprobante",
+  "concepto": "descripción breve del concepto, ej: Póliza granizo - lote 14",
+  "monto": numero sin símbolo de moneda ni separador de miles, con punto decimal,
+  "fecha_vencimiento": "YYYY-MM-DD",
+  "objeto_asegurado": "solo si tipo es Seguro y se identifica, ej: Maquinaria, Camiones — si no, null",
+  "detalle": "solo si tipo es Seguro y hay detalle adicional, ej: modelo o patente — si no, null",
+  "recurrencia": "mensual" | "anual" | "unico"
+}
+
+Si no podés determinar un dato con certeza, usá null en ese campo (excepto tipo y concepto, que siempre deben tener un valor razonable según el documento).`;
+
+    const respuestaIA = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': process.env.ANTHROPIC_API_KEY,
+        'anthropic-version': '2023-06-01',
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-5',
+        max_tokens: 1024,
+        messages: [
+          {
+            role: 'user',
+            content: [
+              { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: base64Pdf } },
+              { type: 'text', text: prompt },
+            ],
+          },
+        ],
+      }),
+    });
+
+    const data = await respuestaIA.json();
+
+    if (!respuestaIA.ok) {
+      console.error('Error de la API de Anthropic:', data);
+      return res.status(500).json({ error: 'No se pudo analizar el documento con IA' });
+    }
+
+    const bloqueTexto = data.content.find(b => b.type === 'text');
+    const textoLimpio = (bloqueTexto?.text || '').replace(/```json|```/g, '').trim();
+    const extraido = JSON.parse(textoLimpio);
+
+    res.json(extraido);
+  } catch (err) {
+    console.error('Error en POST /api/analizar-pdf:', err);
+    res.status(500).json({ error: 'No se pudo analizar el documento' });
+  }
+});
+
 app.get('/api/vencimientos', (req, res) => {
   try {
     const rows = db.prepare(`

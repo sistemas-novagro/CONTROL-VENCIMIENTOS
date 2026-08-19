@@ -99,6 +99,77 @@ function chequearCoincidenciaTipo() {
   }
 }
 
+document.getElementById('btn-analizar-ia').addEventListener('click', async () => {
+  const archivos = document.getElementById('pdf').files;
+  if (archivos.length === 0) {
+    mostrarToast('Elegí un PDF primero', true);
+    return;
+  }
+
+  const boton = document.getElementById('btn-analizar-ia');
+  const textoOriginal = boton.textContent;
+  boton.textContent = 'Analizando...';
+  boton.disabled = true;
+
+  try {
+    const formData = new FormData();
+    formData.append('pdf', archivos[0]); // analizamos el primero si hay varios
+
+    const res = await fetch('/api/analizar-pdf', { method: 'POST', body: formData });
+    const datos = await res.json();
+
+    if (!res.ok) throw new Error(datos.error || 'No se pudo analizar el documento');
+
+    // Tipo
+    if (datos.tipo) {
+      const selectTipo = document.getElementById('tipo');
+      const existeOpcion = Array.from(selectTipo.options).some(o => o.value === datos.tipo);
+      selectTipo.value = existeOpcion ? datos.tipo : 'otro';
+      if (!existeOpcion) {
+        document.getElementById('tipo_manual').value = datos.tipo;
+        document.getElementById('tipo_manual').classList.add('activo');
+      }
+      actualizarSeccionSeguro();
+    }
+
+    // Entidad: buscamos si ya existe una con ese nombre, si no la dejamos como texto manual
+    if (datos.entidad_nombre) {
+      const coincidencia = ENTIDADES.find(
+        e => e.nombre.toLowerCase() === datos.entidad_nombre.toLowerCase()
+      );
+      const selectEntidad = document.getElementById('entidad_id');
+      if (coincidencia) {
+        selectEntidad.value = coincidencia.id;
+        document.getElementById('entidad_manual').classList.remove('activo');
+      } else {
+        selectEntidad.value = 'otro';
+        document.getElementById('entidad_manual').value = datos.entidad_nombre;
+        document.getElementById('entidad_manual').classList.add('activo');
+      }
+      chequearCoincidenciaTipo();
+    }
+
+    if (datos.concepto) document.getElementById('concepto').value = datos.concepto;
+    if (datos.monto) document.getElementById('monto').value = datos.monto;
+    if (datos.fecha_vencimiento) document.getElementById('fecha_vencimiento').value = datos.fecha_vencimiento;
+    if (datos.objeto_asegurado) document.getElementById('objeto_asegurado').value = datos.objeto_asegurado;
+    if (datos.detalle) document.getElementById('detalle').value = datos.detalle;
+
+    if (datos.recurrencia) {
+      const selectRec = document.getElementById('recurrencia');
+      const existeRec = Array.from(selectRec.options).some(o => o.value === datos.recurrencia);
+      if (existeRec) selectRec.value = datos.recurrencia;
+    }
+
+    mostrarToast('Datos completados — revisalos antes de guardar');
+  } catch (err) {
+    mostrarToast('Error: ' + err.message, true);
+  } finally {
+    boton.textContent = textoOriginal;
+    boton.disabled = false;
+  }
+});
+
 document.getElementById('form-vencimiento').addEventListener('keydown', (e) => {
   if (e.key === 'Enter' && e.target.tagName !== 'TEXTAREA') e.preventDefault();
 });
